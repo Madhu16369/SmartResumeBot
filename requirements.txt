@@ -1,1 +1,5 @@
+streamlit
+reportlab
+scikit-learn
+nltk
 
