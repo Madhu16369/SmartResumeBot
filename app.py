@@ -5,67 +5,137 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import nltk
 
+# Download NLP resources
 nltk.download('punkt')
 
-st.set_page_config(page_title="Smart AI Resume Guidance Bot", layout="centered")
+# -------------------- PAGE CONFIG --------------------
+st.set_page_config(
+    page_title="Smart AI Resume Guidance Bot",
+    page_icon="📄",
+    layout="wide"
+)
 
-st.title("🤖 Smart AI Resume Guidance Bot")
-st.write("Create ATS-friendly and job-specific resumes")
+# -------------------- SIDEBAR --------------------
+st.sidebar.title("📌 Smart Resume Bot")
+menu = st.sidebar.radio(
+    "Navigation",
+    ["Resume Builder", "ATS Score", "AI Skill Suggestions"]
+)
 
-name = st.text_input("Full Name")
-job_role = st.selectbox("Target Job Role", [
-    "Software Engineer", "Data Scientist", "Web Developer", "AI Engineer"
-])
-
-skills = st.text_area("Skills (comma separated)")
-projects = st.text_area("Projects / Experience")
-job_desc = st.text_area("Paste Job Description")
-
+# -------------------- JOB ROLE SKILL MAP --------------------
 job_skill_map = {
-    "software engineer": ["Python", "Java", "DSA", "OOPs", "Git"],
-    "data scientist": ["Python", "Machine Learning", "SQL", "Statistics"],
-    "web developer": ["HTML", "CSS", "JavaScript", "React"],
-    "ai engineer": ["Python", "Deep Learning", "NLP"]
+    "software engineer": ["Python", "Java", "DSA", "OOPs", "Git", "SQL"],
+    "data scientist": ["Python", "Machine Learning", "SQL", "Statistics", "Pandas"],
+    "web developer": ["HTML", "CSS", "JavaScript", "React", "Bootstrap"],
+    "ai engineer": ["Python", "Deep Learning", "NLP", "TensorFlow", "PyTorch"]
 }
 
-def calculate_ats_score(resume, jd):
-    vector = CountVectorizer().fit_transform([resume, jd])
-    return round(cosine_similarity(vector)[0][1] * 100, 2)
+# -------------------- FUNCTIONS --------------------
+def improve_grammar(text):
+    sentences = nltk.sent_tokenize(text)
+    improved_text = " ".join(sentence.capitalize() for sentence in sentences)
+    return improved_text
 
-if st.button("Generate Resume"):
-    suggested_skills = [
-        skill for skill in job_skill_map[job_role.lower()]
-        if skill.lower() not in skills.lower()
-    ]
+def calculate_ats_score(resume_text, job_description):
+    vectorizer = CountVectorizer()
+    vectors = vectorizer.fit_transform([resume_text, job_description])
+    score = cosine_similarity(vectors)[0][1]
+    return round(score * 100, 2)
 
-    resume_text = skills + projects
-    ats_score = calculate_ats_score(resume_text, job_desc)
-
-    st.subheader("🧠 Suggested Skills")
-    st.write(suggested_skills)
-
-    st.subheader("📊 ATS Match Score")
-    st.success(f"{ats_score}%")
-
+def generate_pdf(name, job_role, skills, projects, suggestions, ats_score):
     doc = SimpleDocTemplate("resume.pdf")
     styles = getSampleStyleSheet()
 
     content = [
         Paragraph(f"<b>{name}</b>", styles["Title"]),
-        Spacer(1, 10),
-        Paragraph(f"Target Role: {job_role}", styles["Normal"]),
-        Spacer(1, 10),
+        Spacer(1, 12),
+        Paragraph(f"<b>Target Role:</b> {job_role}", styles["Normal"]),
+        Spacer(1, 12),
         Paragraph(f"<b>Skills:</b> {skills}", styles["Normal"]),
-        Paragraph(f"<b>Projects:</b> {projects}", styles["Normal"]),
-        Paragraph(f"<b>Suggested Skills:</b> {', '.join(suggested_skills)}", styles["Normal"]),
-        Paragraph(f"<b>ATS Score:</b> {ats_score}%", styles["Normal"]),
+        Spacer(1, 10),
+        Paragraph(f"<b>Projects / Experience:</b> {projects}", styles["Normal"]),
+        Spacer(1, 10),
+        Paragraph(f"<b>AI Suggested Skills:</b> {', '.join(suggestions)}", styles["Normal"]),
+        Spacer(1, 10),
+        Paragraph(f"<b>ATS Match Score:</b> {ats_score}%", styles["Normal"]),
     ]
 
     doc.build(content)
 
-    st.download_button(
-        "⬇️ Download Resume PDF",
-        open("resume.pdf", "rb"),
-        "Smart_Resume.pdf"
+# -------------------- RESUME BUILDER --------------------
+if menu == "Resume Builder":
+    st.title("📄 Resume Builder")
+
+    name = st.text_input("Full Name")
+    job_role = st.selectbox(
+        "Target Job Role",
+        ["Software Engineer", "Data Scientist", "Web Developer", "AI Engineer"]
     )
 
+    skills = st.text_area("Your Skills (comma separated)")
+    project_input = st.text_area("Projects / Experience")
+    projects = improve_grammar(project_input)
+
+    job_description = st.text_area("Paste Job Description")
+
+    if st.button("🚀 Generate Resume"):
+        role_key = job_role.lower()
+        suggested_skills = [
+            skill for skill in job_skill_map[role_key]
+            if skill.lower() not in skills.lower()
+        ]
+
+        resume_text = f"{skills} {projects}"
+        ats_score = calculate_ats_score(resume_text, job_description)
+
+        st.success("Resume Generated Successfully!")
+
+        st.subheader("🧠 AI Skill Suggestions")
+        for skill in suggested_skills:
+            st.write("✔️", skill)
+
+        st.subheader("📊 ATS Resume Score")
+        st.metric("ATS Compatibility", f"{ats_score}%")
+
+        generate_pdf(
+            name, job_role, skills, projects, suggested_skills, ats_score
+        )
+
+        st.download_button(
+            "⬇️ Download Resume PDF",
+            open("resume.pdf", "rb"),
+            "Smart_AI_Resume.pdf"
+        )
+
+# -------------------- ATS SCORE PAGE --------------------
+elif menu == "ATS Score":
+    st.title("📊 ATS Resume Score Checker")
+
+    resume_text = st.text_area("Paste Your Resume Text")
+    job_description = st.text_area("Paste Job Description")
+
+    if st.button("Check ATS Score"):
+        score = calculate_ats_score(resume_text, job_description)
+        st.metric("ATS Match Percentage", f"{score}%")
+
+# -------------------- AI SKILL SUGGESTIONS --------------------
+elif menu == "AI Skill Suggestions":
+    st.title("🤖 AI Skill Recommendation")
+
+    job_role = st.selectbox(
+        "Select Job Role",
+        ["Software Engineer", "Data Scientist", "Web Developer", "AI Engineer"]
+    )
+
+    current_skills = st.text_area("Enter Your Current Skills")
+
+    if st.button("Get Skill Suggestions"):
+        role_key = job_role.lower()
+        missing_skills = [
+            skill for skill in job_skill_map[role_key]
+            if skill.lower() not in current_skills.lower()
+        ]
+
+        st.subheader("📌 Recommended Skills")
+        for skill in missing_skills:
+            st.write("✔️", skill)
