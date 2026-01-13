@@ -5,9 +5,6 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import nltk
 
-# Download NLP resources
-nltk.download('punkt')
-
 # -------------------- PAGE CONFIG --------------------
 st.set_page_config(
     page_title="Smart AI Resume Guidance Bot",
@@ -32,11 +29,30 @@ job_skill_map = {
 
 # -------------------- FUNCTIONS --------------------
 def improve_grammar(text):
-    sentences = nltk.sent_tokenize(text)
-    improved_text = " ".join(sentence.capitalize() for sentence in sentences)
-    return improved_text
+    """
+    Cloud-safe grammar improvement function.
+    Uses NLTK if available, otherwise falls back to basic sentence splitting.
+    """
+    if not text:
+        return ""
+
+    try:
+        sentences = nltk.sent_tokenize(text)
+    except LookupError:
+        sentences = text.split(".")
+
+    improved_sentences = []
+    for sentence in sentences:
+        sentence = sentence.strip()
+        if sentence:
+            improved_sentences.append(sentence.capitalize())
+
+    return ". ".join(improved_sentences)
 
 def calculate_ats_score(resume_text, job_description):
+    if not resume_text or not job_description:
+        return 0.0
+
     vectorizer = CountVectorizer()
     vectors = vectorizer.fit_transform([resume_text, job_description])
     score = cosine_similarity(vectors)[0][1]
@@ -80,6 +96,7 @@ if menu == "Resume Builder":
 
     if st.button("🚀 Generate Resume"):
         role_key = job_role.lower()
+
         suggested_skills = [
             skill for skill in job_skill_map[role_key]
             if skill.lower() not in skills.lower()
@@ -91,8 +108,11 @@ if menu == "Resume Builder":
         st.success("Resume Generated Successfully!")
 
         st.subheader("🧠 AI Skill Suggestions")
-        for skill in suggested_skills:
-            st.write("✔️", skill)
+        if suggested_skills:
+            for skill in suggested_skills:
+                st.write("✔️", skill)
+        else:
+            st.write("Your skills already match the role well 👍")
 
         st.subheader("📊 ATS Resume Score")
         st.metric("ATS Compatibility", f"{ats_score}%")
@@ -131,11 +151,16 @@ elif menu == "AI Skill Suggestions":
 
     if st.button("Get Skill Suggestions"):
         role_key = job_role.lower()
+
         missing_skills = [
             skill for skill in job_skill_map[role_key]
             if skill.lower() not in current_skills.lower()
         ]
 
         st.subheader("📌 Recommended Skills")
-        for skill in missing_skills:
-            st.write("✔️", skill)
+        if missing_skills:
+            for skill in missing_skills:
+                st.write("✔️", skill)
+        else:
+            st.write("Your skill set is well aligned with this role 🎯")
+
